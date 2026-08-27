@@ -58,7 +58,7 @@ async function main() {
     url: `${base}/?v=${bust}`,
     description:
       prev.description ||
-      "Tamagotchi desk companion with customizable faces, presence cam, idle chat, and inventable skills",
+      "Tamagotchi desk companion with customizable faces, presence cam, and idle chat",
     iconUrl: prev.iconUrl || "",
     themeColor: prev.themeColor || "#FE5000",
   };
