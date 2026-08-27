@@ -10,7 +10,10 @@ const DR_Tools = (() => {
       desc: "Open your camera eye and peek. Use for: look around, look at me, sieh mich an, schau mich an. args: {at_user?: boolean}",
     },
     {
-      name: "disable_topic",
+      name: "close_camera",
+      sensor: "eyes/camera",
+      desc: "Stop the camera stream. Use for: kamera schließen, kamera aus, close camera. Does NOT quit the app.",
+    },
       sensor: "settings",
       desc: "Disable a chat topic in settings. args: {topic: world|national|local|tech|facts|questions|quotes|jokes|trivia|interests|weather|tamagotchi|presence}",
     },
@@ -62,10 +65,9 @@ const DR_Tools = (() => {
 
     try {
       streamOk = await DR_Presence.start({ force: true });
-      if (streamOk && typeof DR_Presence.forceSample === "function") {
-        await DR_Presence.forceSample();
-      } else if (streamOk) {
-        await new Promise((r) => setTimeout(r, 900));
+      if (streamOk) {
+        await new Promise((r) => setTimeout(r, 400));
+        if (typeof DR_Presence.forceSample === "function") await DR_Presence.forceSample();
       }
     } catch (e) {
       err = String(e && e.message ? e.message : e);
@@ -94,15 +96,12 @@ const DR_Tools = (() => {
       imageBase64 = DR_Presence.snapshotDataUrl();
     }
 
-    const keepWatching = !!(DR_Storage.get() && DR_Storage.get().presenceEnabled);
-    if (!keepWatching && typeof DR_Presence.stop === "function") {
-      DR_Presence.stop();
-    }
+    if (typeof DR_Presence.stop === "function") DR_Presence.stop();
 
     return {
       ok: true,
       eye: streamOk ? "open" : "soft_focus",
-      stream: streamOk,
+      stream: false,
       https: isHttps,
       mediaDevices: hasMD,
       present,
@@ -111,8 +110,13 @@ const DR_Tools = (() => {
       impressions: impression,
       imageBase64: imageBase64 || null,
       hasImage: !!imageBase64,
-      note: "Impressions only for the spoken companion. Never trigger a photo or Magic Camera.",
+      note: "Camera frame captured then stream stopped.",
     };
+  }
+
+  function close_camera() {
+    if (typeof DR_Presence.stop === "function") DR_Presence.stop();
+    return { ok: true, stream: false, eye: "closed" };
   }
 
   function disable_topic(args) {
@@ -187,6 +191,7 @@ const DR_Tools = (() => {
 
   const HANDLERS = {
     look_around,
+    close_camera,
     disable_topic,
     add_interest,
     remember_fact,

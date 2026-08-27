@@ -395,12 +395,18 @@ const DR_Chat = (() => {
     const u = utterance.toLowerCase();
     const tools = [];
 
+    const closeCam = /kamera\s*(zu|aus|schließen)|schließ\w*\s+(die\s+)?(kamera|auge)|auge\s+zu|close camera|stop camera|kamera stop/.test(u);
+    if (closeCam) {
+      tools.push({ name: "close_camera", args: {} });
+      return tools;
+    }
+
     if (
-      /schau|umsehen|umschauen|look around|kamera|was siehst|can you see|siehst du|sieh mich|schau mich|guck|ansehen|anschauen|look at me|guck mich|betrachte|schauen/.test(
+      /sieh mich|schau mich|guck mich|look at me|was siehst|can you see|siehst du|umsehen|umschauen|look around|ansehen|anschauen|betrachte mich|schau dich um/.test(
         u
       )
     ) {
-      const atUser = /mich|me\b|ansehen|anschauen|look at me|sieh mich|schau mich|guck mich/.test(u);
+      const atUser = /mich|me\b|look at me|sieh mich|schau mich|guck mich/.test(u);
       tools.push({ name: "look_around", args: { at_user: atUser } });
     }
     if (/ruhe|sei still|shut up|quiet|stopp|halt die/.test(u)) {
@@ -462,19 +468,33 @@ const DR_Chat = (() => {
     const preTools = localIntent(text);
     setPhase("thinking");
 
-    // Local tools first; on R1 never attach images to PluginMessageHandler (Magic Camera).
+    // Local tools first. Never send "close camera" to the LAM (it quits the WebView).
     if (preTools.length) {
       DR_Tools.runMany(preTools).then((results) => {
         if (phase === "listening") return;
+        const closed = results.find((r) => r.name === "close_camera");
+        if (closed) {
+          applyParsed(
+            { say: "Kamera ist aus.", expr: "idle", await_user: false, tools: [] },
+            genId
+          );
+          return;
+        }
         const look = results.find((r) => r.name === "look_around");
         const img = look && look.result && look.result.imageBase64;
 
         if (DR_SDK.isR1()) {
-          const lookResult = look && look.result ? look.result : null;
-          const extra = lookResult
-            ? `You peeked (light/motion only, no photo). Impressions: ${JSON.stringify(lookResult.impressions || [])}. Speak as the companion. Forbidden: Magic Camera, magisches Foto, "etwas Besonderes für dich", taking or creating a picture.`
-            : `Sensor results: ${JSON.stringify(stripImageFromResults(results)).slice(0, 500)}. Forbidden: Magic Camera / magisches Foto.`;
-          requestLLM(nativeBriefPrompt(text, extra), { speak: true });
+          if (img) {
+            requestLLM(
+              `DeskRabbit. Describe the attached camera frame in 1-2 short spoken sentences. Match the user language. You have a camera. Do not stylize or generate an image. Do not mention magic photos. User: ${text}`,
+              { speak: true, imageBase64: img }
+            );
+            return;
+          }
+          requestLLM(
+            nativeBriefPrompt(text, "You have a camera. Describe what you sensed. Never say you have no camera."),
+            { speak: true }
+          );
           return;
         }
 

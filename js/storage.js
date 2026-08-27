@@ -9,7 +9,7 @@ const DR_Storage = (() => {
     idleEnabled: true,
     idleMinutes: 8,
     tapChat: true,
-    presenceEnabled: true,
+    presenceEnabled: false,
     worldWatch: true,
     quietHours: false,
     quietStart: 23,

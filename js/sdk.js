@@ -204,7 +204,8 @@ const DR_SDK = (() => {
             message,
             useLLM: true,
             wantsR1Response: speak,
-            wantsJournalEntry: !!(opts.journal ?? settings.journal),
+            wantsJournalEntry: false,
+            ...(imageBase64 ? { imageBase64 } : {}),
           });
         })
         .finally(() => {
@@ -214,14 +215,14 @@ const DR_SDK = (() => {
     }
 
     if (isR1()) {
-      // Never send imageBase64 to PluginMessageHandler: R1 Cam/Wonder use that
-      // payload to trigger OS Magic Camera ("magisches Foto"), not companion chat.
-      const ok = post({
+      const payload = {
         message,
         useLLM: true,
         wantsR1Response: speak,
-        wantsJournalEntry: !!(opts.journal ?? settings.journal),
-      });
+        wantsJournalEntry: false,
+      };
+      if (imageBase64) payload.imageBase64 = imageBase64;
+      const ok = post(payload);
       if (!ok) pendingLLM = Math.max(0, pendingLLM - 1);
       return ok;
     }
