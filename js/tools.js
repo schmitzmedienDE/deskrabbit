@@ -14,6 +14,8 @@ const DR_Tools = (() => {
       sensor: "eyes/camera",
       desc: "Stop the camera stream. Use for: kamera schließen, kamera aus, close camera. Does NOT quit the app.",
     },
+    {
+      name: "disable_topic",
       sensor: "settings",
       desc: "Disable a chat topic in settings. args: {topic: world|national|local|tech|facts|questions|quotes|jokes|trivia|interests|weather|tamagotchi|presence}",
     },
