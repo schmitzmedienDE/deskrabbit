@@ -113,8 +113,8 @@
 
   <div class="layout">
     <section class="panel">
-      <h2 style="margin:0 0 10px;font-size:14px">Install-QR (live)</h2>
-      <div id="qr"></div>
+      <h2 style="margin:0 0 10px;font-size:14px">Install-QR</h2>
+      <div id="qr"><img src="qr.png" width="280" height="280" alt="Install-QR" /></div>
       <p class="err" id="err"></p>
       <details open>
         <summary>creation.json</summary>
@@ -139,96 +139,65 @@
     const STAMP = document.getElementById("push-stamp");
     let lastJson = "";
 
+    function showPng() {
+      QR_BOX.innerHTML = '<img src="qr.png?ts=' + Date.now() + '" width="280" height="280" alt="Install-QR" />';
+    }
+
     async function loadVersion() {
       try {
-        const res = await fetch("./version.json?ts=" + Date.now(), { cache: "no-store" });
+        const res = await fetch("version.json?ts=" + Date.now(), { cache: "no-store" });
         if (!res.ok) throw new Error("version.json " + res.status);
         const v = await res.json();
         STAMP.textContent =
-          "Letzter GitHub-Push: " + (v.pushedAtLocal || v.pushedAtISO || "?") +
+          "Letzter GitHub-Push: " + (v.pushedAtLocal || "?") +
           (v.commit ? "  ·  " + v.commit : "");
       } catch (e) {
-        STAMP.textContent = "Push-Zeit unbekannt (" + (e.message || e) + ")";
+        STAMP.textContent = "Push-Zeit unbekannt";
       }
+    }
+
+    function renderQr(text) {
+      showPng();
+      if (typeof QRCode === "undefined" || typeof QRCode.toCanvas !== "function") return;
+      QRCode.toCanvas(text, { width: 280, margin: 2, errorCorrectionLevel: "M" }, function (err, canvas) {
+        if (err || !canvas) return;
+        QR_BOX.innerHTML = "";
+        QR_BOX.appendChild(canvas);
+      });
     }
 
     async function loadCreation() {
       ERR.textContent = "";
       await loadVersion();
-      const res = await fetch("./creation.json?ts=" + Date.now(), { cache: "no-store" });
-
-    function withBust(url) {
-      try {
-        const u = new URL(url, location.href);
-        u.searchParams.set("v", Date.now().toString(36));
-        return u.toString();
-      } catch (_) {
-        return url + (url.includes("?") ? "&" : "?") + "v=" + Date.now().toString(36);
-      }
-    }
-
-    async function loadCreation() {
-      ERR.textContent = "";
-      const res = await fetch("./creation.json?ts=" + Date.now(), { cache: "no-store" });
+      const res = await fetch("creation.json?ts=" + Date.now(), { cache: "no-store" });
       if (!res.ok) throw new Error("creation.json " + res.status);
       const meta = await res.json();
-
-      // Keep QR pointing at this server’s LAN-facing URL from file,
-      // but ensure preview iframe always reloads current code.
       const json = JSON.stringify(meta);
       PAYLOAD.textContent = JSON.stringify(meta, null, 2);
-
+      STATUS.textContent = meta.url || "";
       if (json !== lastJson) {
         lastJson = json;
-        await renderQr(json);
-        STATUS.textContent =
-          "QR sync · " + meta.url + " · " + new Date().toLocaleTimeString();
-      } else {
-        STATUS.textContent =
-          "aktuell · " + meta.url + " · " + new Date().toLocaleTimeString();
+        renderQr(json);
       }
-
-      // Always refresh preview when user hits Sync; light reload on interval only if focused
       return meta;
-    }
-
-    function renderQr(text) {
-      return new Promise((resolve, reject) => {
-        if (typeof QRCode === "undefined") {
-          // fallback: static png
-          QR_BOX.innerHTML = '<img src="qr.png?ts=' + Date.now() + '" width="280" height="280" alt="QR" />';
-          reject(new Error("vendor/qrcode.min.js fehlt — zeige qr.png"));
-          return;
-        }
-        QRCode.toCanvas(text, { width: 280, margin: 2, errorCorrectionLevel: "M" }, (err, canvas) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          QR_BOX.innerHTML = "";
-          QR_BOX.appendChild(canvas);
-          resolve();
-        });
-      });
     }
 
     async function syncAll(reloadPreview) {
       try {
         await loadCreation();
-        if (reloadPreview) {
-          PREVIEW.src = "./index.html?v=" + Date.now().toString(36);
+        if (reloadPreview && PREVIEW) {
+          PREVIEW.src = "index.html?v=" + Date.now().toString(36);
         }
       } catch (e) {
         ERR.textContent = String(e.message || e);
-        // still try static png
-        QR_BOX.innerHTML = '<img src="qr.png?ts=' + Date.now() + '" width="280" height="280" alt="QR" />';
+        showPng();
       }
     }
 
-    document.getElementById("btn-refresh").addEventListener("click", () => syncAll(true));
-    window.addEventListener("focus", () => syncAll(false));
+    document.getElementById("btn-refresh").addEventListener("click", function () { syncAll(true); });
+    window.addEventListener("focus", function () { syncAll(false); });
     syncAll(true);
-    setInterval(() => syncAll(false), 5000);
+    setInterval(function () { syncAll(false); }, 5000);
   </script>
 </body>
 </html>
