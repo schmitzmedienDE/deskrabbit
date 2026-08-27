@@ -39,7 +39,7 @@ creations/DeskRabbit/
 
 ## Deploy (Gerät)
 
-Öffentliches Hosting: **https://schmitzmedienDE.github.io/deskrabbit/** (GitHub Pages, HTTPS — wie R1 Cam).
+Öffentliches Hosting: **https://schmitzmediende.github.io/deskrabbit/** (GitHub Pages, HTTPS — wie R1 Cam). Repo: https://github.com/schmitzmedienDE/deskrabbit
 
 `creation.json` muss genau diese URL tragen. Auf dem R1: Creations → Add via QR (`install.html` oder `qr.png`).
 
