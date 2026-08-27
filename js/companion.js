@@ -24,7 +24,9 @@ const DR_Companion = (() => {
 
     DR_Storage.patch({ companion: c });
     renderHud();
-    DR_Face.moodExpression(c);
+    const busy = typeof DR_Chat !== "undefined" && DR_Chat.getPhase &&
+      ["listening", "thinking", "speaking"].indexOf(DR_Chat.getPhase()) >= 0;
+    if (!busy) DR_Face.moodExpression(c);
     return c;
   }
 
@@ -73,7 +75,9 @@ const DR_Companion = (() => {
     }
     DR_Storage.patch({ companion: c });
     renderHud();
-    DR_Face.moodExpression(c);
+    const busy = typeof DR_Chat !== "undefined" && DR_Chat.getPhase &&
+      ["listening", "thinking", "speaking"].indexOf(DR_Chat.getPhase()) >= 0;
+    if (!busy) DR_Face.moodExpression(c);
     return c;
   }
 

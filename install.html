@@ -24,6 +24,13 @@
     }
     header h1 { font-size: 16px; margin: 0; }
     header .meta { color: #8b8a86; font-size: 12px; }
+    .push-stamp {
+      margin-top: 6px;
+      font-size: 15px;
+      font-weight: 800;
+      color: #fe5000;
+      letter-spacing: 0.02em;
+    }
     header button, header a.btn {
       border: 0;
       background: #fe5000;
@@ -96,6 +103,7 @@
     <div>
       <h1>DeskRabbit — Preview + QR</h1>
       <div class="meta" id="status">Lade creation.json…</div>
+      <div id="push-stamp" class="push-stamp">Push: lädt…</div>
     </div>
     <div>
       <button type="button" id="btn-refresh" class="secondary">Sync jetzt</button>
@@ -128,7 +136,26 @@
     const STATUS = document.getElementById("status");
     const ERR = document.getElementById("err");
     const PREVIEW = document.getElementById("preview");
+    const STAMP = document.getElementById("push-stamp");
     let lastJson = "";
+
+    async function loadVersion() {
+      try {
+        const res = await fetch("./version.json?ts=" + Date.now(), { cache: "no-store" });
+        if (!res.ok) throw new Error("version.json " + res.status);
+        const v = await res.json();
+        STAMP.textContent =
+          "Letzter GitHub-Push: " + (v.pushedAtLocal || v.pushedAtISO || "?") +
+          (v.commit ? "  ·  " + v.commit : "");
+      } catch (e) {
+        STAMP.textContent = "Push-Zeit unbekannt (" + (e.message || e) + ")";
+      }
+    }
+
+    async function loadCreation() {
+      ERR.textContent = "";
+      await loadVersion();
+      const res = await fetch("./creation.json?ts=" + Date.now(), { cache: "no-store" });
 
     function withBust(url) {
       try {

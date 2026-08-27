@@ -191,17 +191,31 @@
 }
 .face.expr-listening[data-talking="true"] .mouth { animation: none; }
 
-/* Thinking: asymmetric eyes, tiny mouth */
-.face.expr-thinking .eye.left { transform: scale(1.05) translateY(-2px); }
-.face.expr-thinking .eye.right { transform: scale(0.92) rotate(6deg); }
-.face.expr-thinking .pupil { transform: translate(-40%, -60%); }
+/* Thinking: obvious — pupils bounce, glow */
+.face.expr-thinking .eye.left { transform: scale(1.08) translateY(-3px); }
+.face.expr-thinking .eye.right { transform: scale(0.9) rotate(8deg); }
+.face.expr-thinking .pupil {
+  animation: thinkPupils 0.55s ease-in-out infinite;
+}
 .face.expr-thinking .mouth {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   border: 2px solid var(--eye);
   background: transparent;
   animation: none;
+}
+.face.expr-thinking .face-glow {
+  opacity: 1;
+  animation: thinkGlow 0.9s ease-in-out infinite;
+}
+@keyframes thinkPupils {
+  0%, 100% { transform: translate(-30%, -55%); }
+  50% { transform: translate(20%, -35%); }
+}
+@keyframes thinkGlow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
 }
 
 /* Waiting: soft half-lids, calm */

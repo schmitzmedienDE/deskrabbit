@@ -36,30 +36,61 @@ const DR_Chat = (() => {
     return phase;
   }
 
+  let llmWatch = null;
+  let ignorePluginUntil = 0;
+
+  function showFaceStatus(text) {
+    const el = document.getElementById("face-status");
+    if (!el) return;
+    if (!text) {
+      el.classList.add("hidden");
+      el.textContent = "";
+      return;
+    }
+    el.textContent = text;
+    el.classList.remove("hidden");
+  }
+
+  function setAppPhaseClass(p) {
+    const app = document.getElementById("app");
+    if (!app) return;
+    app.dataset.phase = p;
+    app.classList.toggle("is-listening", p === "listening");
+    app.classList.toggle("is-thinking", p === "thinking");
+    app.classList.toggle("is-speaking", p === "speaking");
+  }
+
   function setPhase(p) {
     phase = p;
+    setAppPhaseClass(p);
     if (p === "listening") {
       DR_Face.setTalking(false);
       DR_Face.setExpression("listening");
       DR_SDK.setListening(true);
+      showFaceStatus("ZUHÖREN");
     } else if (p === "thinking") {
       DR_SDK.setListening(false);
       DR_Face.setTalking(false);
       DR_Face.setExpression("thinking");
+      showFaceStatus("DENKE …");
     } else if (p === "waiting") {
       DR_SDK.setListening(false);
       DR_Face.setTalking(false);
       DR_Face.setExpression("waiting");
+      showFaceStatus("?");
     } else if (p === "speaking") {
       DR_SDK.setListening(false);
+      showFaceStatus("");
     } else if (p === "quiet") {
       DR_SDK.setListening(false);
       DR_Face.setTalking(false);
       DR_Face.setExpression("sleepy");
+      showFaceStatus("");
     } else {
       DR_SDK.setListening(false);
       DR_Face.setTalking(false);
       if (p === "idle") DR_Face.setExpression("idle");
+      showFaceStatus("");
     }
   }
 
@@ -101,6 +132,8 @@ const DR_Chat = (() => {
   function cancelPending() {
     genId += 1;
     activeGen = genId;
+    if (llmWatch) clearTimeout(llmWatch);
+    llmWatch = null;
     if (typeof DR_SDK.cancelPending === "function") DR_SDK.cancelPending();
   }
 
@@ -203,6 +236,10 @@ const DR_Chat = (() => {
   async function applyParsed(parsed, myGen) {
     if (myGen !== genId) return; // stale
     if (phase === "listening") return;
+    if (llmWatch) {
+      clearTimeout(llmWatch);
+      llmWatch = null;
+    }
 
     if (parsed.tools && parsed.tools.length) {
       setPhase("thinking");
@@ -228,6 +265,10 @@ const DR_Chat = (() => {
       setPhase("speaking");
       DR_Face.setExpression(parsed.expr || "talking", { temporary: true, ms: 2800 });
       DR_Face.setTalking(true);
+      if (DR_SDK.isR1() && typeof DR_SDK.speakVerbatim === "function") {
+        ignorePluginUntil = Date.now() + 4000;
+        DR_SDK.speakVerbatim(say);
+      }
       setTimeout(() => {
         if (genId === myGen && phase !== "listening") {
           DR_Face.setTalking(false);
@@ -248,11 +289,27 @@ const DR_Chat = (() => {
     const myGen = ++genId;
     activeGen = myGen;
     if (opts.speak !== false && phase !== "listening") setPhase("thinking");
+    if (llmWatch) clearTimeout(llmWatch);
+    llmWatch = setTimeout(() => {
+      if (activeGen !== myGen) return;
+      if (phase !== "thinking") return;
+      applyParsed(
+        {
+          say: "Kurz hängen geblieben. Sag's nochmal.",
+          expr: "confused",
+          await_user: false,
+          tools: [],
+        },
+        myGen
+      );
+    }, 12000);
 
+    const onDevice = DR_SDK.isR1();
     DR_SDK.askLLM(prompt, {
-      speak: opts.speak !== false && phase !== "listening" && !inQuiet(),
+      // Device: get text back first (wantsR1Response often never returns to the WebView)
+      speak: onDevice ? false : opts.speak !== false && phase !== "listening" && !inQuiet(),
       genId: myGen,
-      silent: phase === "listening" || inQuiet(),
+      silent: onDevice || phase === "listening" || inQuiet(),
       imageBase64: opts.imageBase64 || null,
     });
     return true;
@@ -262,14 +319,12 @@ const DR_Chat = (() => {
     const s = DR_Storage.get();
     const lang = DR_I18N.locale();
     return [
-      `You are ${s.name}, a casual desk companion on Rabbit R1.`,
-      `Personality: ${s.personality}. Speak ${lang} matching the user.`,
-      `Reply in ONE or TWO short spoken sentences. No lists. No markdown. No JSON.`,
+      `${s.name}, desk pal. ${lang}. Max 2 spoken sentences. No JSON.`,
       extra ? String(extra) : "",
-      `User said: ${userText}`,
+      `User: ${userText}`,
     ]
       .filter(Boolean)
-      .join("\n");
+      .join(" ");
   }
 
   function stripImageFromResults(results) {
@@ -302,6 +357,7 @@ const DR_Chat = (() => {
     }
 
     const myGen = activeGen;
+    if (Date.now() < ignorePluginUntil) return;
     // Ignore LLM chatter while mic is open — but STT already handled above
     if (phase === "listening") return;
     if (data && data.genId != null && data.genId !== genId) return;
