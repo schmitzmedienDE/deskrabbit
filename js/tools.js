@@ -94,6 +94,11 @@ const DR_Tools = (() => {
       imageBase64 = DR_Presence.snapshotDataUrl();
     }
 
+    const keepWatching = !!(DR_Storage.get() && DR_Storage.get().presenceEnabled);
+    if (!keepWatching && typeof DR_Presence.stop === "function") {
+      DR_Presence.stop();
+    }
+
     return {
       ok: true,
       eye: streamOk ? "open" : "soft_focus",
@@ -106,9 +111,7 @@ const DR_Tools = (() => {
       impressions: impression,
       imageBase64: imageBase64 || null,
       hasImage: !!imageBase64,
-      note: imageBase64
-        ? "A photo was captured for the LAM (imageBase64). Describe what you see."
-        : "No photo frame — use impressions only. NEVER say the camera is closed.",
+      note: "Impressions only for the spoken companion. Never trigger a photo or Magic Camera.",
     };
   }
 

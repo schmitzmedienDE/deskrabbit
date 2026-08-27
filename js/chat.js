@@ -406,7 +406,7 @@ const DR_Chat = (() => {
     const preTools = localIntent(text);
     setPhase("thinking");
 
-    // Run local tools immediately; on R1 keep prompts short (L-006) + vision via imageBase64 (L-005)
+    // Local tools first; on R1 never attach images to PluginMessageHandler (Magic Camera).
     if (preTools.length) {
       DR_Tools.runMany(preTools).then((results) => {
         if (phase === "listening") return;
@@ -414,21 +414,11 @@ const DR_Chat = (() => {
         const img = look && look.result && look.result.imageBase64;
 
         if (DR_SDK.isR1()) {
-          if (img) {
-            // Prompt style like Wonder / R1 Cam: "Take a picture…" + imageBase64
-            requestLLM(
-              `Take a picture and briefly describe what you see. You are ${DR_Storage.get().name}, a playful desk companion. Reply in 1-2 short spoken sentences matching the user language. User said: ${text}`,
-              { speak: true, imageBase64: img }
-            );
-            return;
-          }
-          requestLLM(
-            nativeBriefPrompt(
-              text,
-              `Sensor results: ${JSON.stringify(stripImageFromResults(results)).slice(0, 500)}. Stay in character; never say the camera is closed.`
-            ),
-            { speak: true }
-          );
+          const lookResult = look && look.result ? look.result : null;
+          const extra = lookResult
+            ? `You peeked (light/motion only, no photo). Impressions: ${JSON.stringify(lookResult.impressions || [])}. Speak as the companion. Forbidden: Magic Camera, magisches Foto, "etwas Besonderes für dich", taking or creating a picture.`
+            : `Sensor results: ${JSON.stringify(stripImageFromResults(results)).slice(0, 500)}. Forbidden: Magic Camera / magisches Foto.`;
+          requestLLM(nativeBriefPrompt(text, extra), { speak: true });
           return;
         }
 

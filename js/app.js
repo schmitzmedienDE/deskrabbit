@@ -141,7 +141,6 @@ const DeskRabbit = (() => {
   function onSideClick() {
     if (Date.now() < ignoreClickUntil) return;
     DR_Chat.touch();
-    if (screen === "face") DR_Presence.start({ force: true });
     const now = Date.now();
     clickTimes = clickTimes.filter((t) => now - t < 400);
     clickTimes.push(now);
@@ -185,7 +184,6 @@ const DeskRabbit = (() => {
       longPressing = true;
       ignoreClickUntil = Date.now() + 800;
       DR_Chat.touch();
-      DR_Presence.start({ force: true });
       DR_Chat.startListen();
     });
     DR_SDK.on("longPressEnd", () => {
@@ -293,7 +291,6 @@ const DeskRabbit = (() => {
           e.preventDefault();
           if (!longPressing) {
             longPressing = true;
-            DR_Presence.start({ force: true });
             DR_Chat.startListen();
           }
         }

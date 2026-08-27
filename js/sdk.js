@@ -200,14 +200,12 @@ const DR_SDK = (() => {
         .catch((err) => {
           console.warn("device gateway failed, native fallback", err);
           if (cancelled) return;
-          const payload = {
+          post({
             message,
             useLLM: true,
             wantsR1Response: speak,
             wantsJournalEntry: !!(opts.journal ?? settings.journal),
-          };
-          if (imageBase64) payload.imageBase64 = imageBase64;
-          post(payload);
+          });
         })
         .finally(() => {
           pendingLLM = Math.max(0, pendingLLM - 1);
@@ -216,15 +214,14 @@ const DR_SDK = (() => {
     }
 
     if (isR1()) {
-      const payload = {
+      // Never send imageBase64 to PluginMessageHandler: R1 Cam/Wonder use that
+      // payload to trigger OS Magic Camera ("magisches Foto"), not companion chat.
+      const ok = post({
         message,
         useLLM: true,
         wantsR1Response: speak,
         wantsJournalEntry: !!(opts.journal ?? settings.journal),
-      };
-      // Best-effort community field (r1-create); official SDK docs omit it
-      if (imageBase64) payload.imageBase64 = imageBase64;
-      const ok = post(payload);
+      });
       if (!ok) pendingLLM = Math.max(0, pendingLLM - 1);
       return ok;
     }
