@@ -192,7 +192,7 @@ const DR_Chat = (() => {
     const lang = DR_I18N.locale();
     return [
       `You are ${s.name}, a desk companion on Rabbit R1.`,
-      `Personality: ${s.personality}. Language: ${lang} (match user).`,
+      `Personality: ${s.personality}. Reply in the user's language (auto). UI locale hint: ${lang}.`,
       `HARD RULES:`,
       `- ONE short reply (1-2 sentences max). Never monologue.`,
       `- Never ask a new question if you are still waiting for an answer.`,
@@ -265,8 +265,8 @@ const DR_Chat = (() => {
       setPhase("speaking");
       DR_Face.setExpression(parsed.expr || "talking", { temporary: true, ms: 2800 });
       DR_Face.setTalking(true);
-      if (DR_SDK.isR1() && typeof DR_SDK.speakVerbatim === "function") {
-        ignorePluginUntil = Date.now() + 4000;
+      if (typeof DR_SDK.speakVerbatim === "function" && (!DR_SDK.isForeground || DR_SDK.isForeground())) {
+        ignorePluginUntil = Date.now() + 2500;
         DR_SDK.speakVerbatim(say);
       }
       setTimeout(() => {
@@ -319,7 +319,7 @@ const DR_Chat = (() => {
     const s = DR_Storage.get();
     const lang = DR_I18N.locale();
     return [
-      `${s.name}, desk pal. ${lang}. Max 2 spoken sentences. No JSON.`,
+      `${s.name}, desk pal. Reply in the same language as the user (automatic). UI hint: ${lang}. Max 2 spoken sentences. No JSON. You are not the home-screen Rabbit assistant.`,
       extra ? String(extra) : "",
       `User: ${userText}`,
     ]
@@ -486,13 +486,16 @@ const DR_Chat = (() => {
         if (DR_SDK.isR1()) {
           if (img) {
             requestLLM(
-              `DeskRabbit. Describe the attached camera frame in 1-2 short spoken sentences. Match the user language. You have a camera. Do not stylize or generate an image. Do not mention magic photos. User: ${text}`,
+              `You are DeskRabbit (not the system assistant). A camera JPEG is attached. Describe what you see in 1-2 sentences in the user's language. Do not generate or stylize a photo. Never say you have no camera. Never tell the user to double-press a button. User: ${text}`,
               { speak: true, imageBase64: img }
             );
             return;
           }
           requestLLM(
-            nativeBriefPrompt(text, "You have a camera. Describe what you sensed. Never say you have no camera."),
+            nativeBriefPrompt(
+              text,
+              "You have a WebView camera. Describe what you sensed. Never say you have no camera. Never mention the side button."
+            ),
             { speak: true }
           );
           return;

@@ -40,7 +40,6 @@ const DR_Settings = (() => {
         row("interests", t("interests"), trim(s.interests) || "—", cycleInterests),
         nav("topics", t("topics"), () => ((mode = "topics"), render())),
         nav("faces", t("faces"), () => DeskRabbit.show("faces")),
-        nav("skills", t("skills"), () => DeskRabbit.show("skills")),
         nav("faceEdit", t("customize"), () => ((mode = "faceEdit"), render())),
       ];
     } else if (mode === "topics") {

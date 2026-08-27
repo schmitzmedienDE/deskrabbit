@@ -37,16 +37,51 @@ const DR_SDK = (() => {
     return raw.replace(/^["']|["']$/g, "").slice(0, 280);
   }
 
-  /** Verbatim TTS via native LAM — keep message trivial (research: overloaded prompts fail). */
+  let foreground = true;
+
+  function isForeground() {
+    return foreground && typeof document !== "undefined" && document.visibilityState !== "hidden";
+  }
+
+  /**
+   * Speak without invoking the system LAM.
+   * useLLM:true + wantsR1Response:true = OS-Assistent (leakt auf den Startschirm, fällt aus der Rolle).
+   * Muster: gemma-chat — useLLM:false, wantsR1Response:true = nur TTS.
+   */
   function speakVerbatim(text) {
     const say = String(text || "").trim().slice(0, 280);
-    if (!say || !isR1()) return false;
-    return post({
-      message: `Say exactly this text and nothing else: ${say}`,
-      useLLM: true,
-      wantsR1Response: true,
-      wantsJournalEntry: false,
-    });
+    if (!say) return false;
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (_) {}
+    }
+    if (!isForeground()) return false;
+    if (isR1()) {
+      return post({
+        message: say,
+        useLLM: false,
+        wantsR1Response: true,
+        wantsJournalEntry: false,
+      });
+    }
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      const utt = new SpeechSynthesisUtterance(say);
+      window.speechSynthesis.speak(utt);
+      return true;
+    }
+    return false;
+  }
+
+  function hushOutput() {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (_) {}
+    }
+    stopNativeVoice();
+    cancelPending();
+    if (typeof DR_Presence !== "undefined" && DR_Presence.stop) DR_Presence.stop();
   }
 
   const listeners = {
@@ -179,23 +214,20 @@ const DR_SDK = (() => {
     cancelled = false;
     pendingLLM += 1;
     const genId = opts.genId;
-    const speak = !opts.silent && opts.speak !== false;
+    // Never wantsR1Response on LLM — that hands the session to the home-screen assistant.
     const imageBase64 = opts.imageBase64 ? normalizeImageBase64(opts.imageBase64) : null;
     const deviceBases = isR1() ? deviceGatewayBases() : [];
 
-    // R1 + configured gateway: think like Preview, speak verbatim via PluginMessageHandler
     if (isR1() && deviceBases.length) {
       gatewayChat(message, { imageBase64, bases: deviceBases })
         .then((text) => {
-          if (cancelled) return;
-          const say = extractSay(text);
+          if (cancelled || !isForeground()) return;
           emit("pluginMessage", {
             message: text,
             data: null,
             remote: true,
             genId,
           });
-          if (speak && say) speakVerbatim(say);
         })
         .catch((err) => {
           console.warn("device gateway failed, native fallback", err);
@@ -203,7 +235,7 @@ const DR_SDK = (() => {
           post({
             message,
             useLLM: true,
-            wantsR1Response: speak,
+            wantsR1Response: false,
             wantsJournalEntry: false,
             ...(imageBase64 ? { imageBase64 } : {}),
           });
@@ -218,7 +250,7 @@ const DR_SDK = (() => {
       const payload = {
         message,
         useLLM: true,
-        wantsR1Response: speak,
+        wantsR1Response: false,
         wantsJournalEntry: false,
       };
       if (imageBase64) payload.imageBase64 = imageBase64;
@@ -304,6 +336,22 @@ const DR_SDK = (() => {
       if (pendingLLM > 0) pendingLLM -= 1;
       emit("pluginMessage", data);
     };
+
+    const onLeave = () => {
+      foreground = false;
+      hushOutput();
+    };
+    const onEnter = () => {
+      foreground = true;
+    };
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) onLeave();
+      else onEnter();
+    });
+    window.addEventListener("pagehide", onLeave);
+    window.addEventListener("freeze", onLeave);
+    window.addEventListener("pageshow", onEnter);
+    window.addEventListener("focus", onEnter);
   }
 
   function startNativeVoice() {
@@ -341,6 +389,8 @@ const DR_SDK = (() => {
     post,
     askLLM,
     speakVerbatim,
+    hushOutput,
+    isForeground,
     deviceGatewayBases,
     isAwaitingLLM,
     cancelPending,

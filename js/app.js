@@ -1,7 +1,6 @@
 const DeskRabbit = (() => {
   let screen = "face";
   let facesCursor = 0;
-  let skillsCursor = 0;
   let longPressing = false;
   let clickTimes = [];
   let ignoreClickUntil = 0;
@@ -12,7 +11,7 @@ const DeskRabbit = (() => {
 
   function show(name) {
     screen = name;
-    ["settings", "faces", "skills"].forEach((id) => {
+    ["settings", "faces"].forEach((id) => {
       const el = sheet(id);
       if (!el) return;
       if (id === name) el.removeAttribute("hidden");
@@ -27,7 +26,6 @@ const DeskRabbit = (() => {
       if (log) log.textContent = DR_Chat.getLog() || "";
     }
     if (name === "faces") renderFaces();
-    if (name === "skills") renderSkills();
     if (name === "face") {
       DR_Face.applyFromSettings();
       refreshChrome();
@@ -37,10 +35,8 @@ const DeskRabbit = (() => {
   function refreshChrome() {
     const st = document.getElementById("settings-title");
     const ft = document.getElementById("faces-title");
-    const sk = document.getElementById("skills-title");
     if (st) st.textContent = DR_I18N.t("settings");
     if (ft) ft.textContent = DR_I18N.t("faces");
-    if (sk) sk.textContent = DR_I18N.t("skills");
   }
 
   function renderFaces() {
@@ -71,44 +67,6 @@ const DeskRabbit = (() => {
     DR_Face.setExpression("happy", { temporary: true, ms: 900 });
   }
 
-  function renderSkills() {
-    const list = document.getElementById("skills-list");
-    list.innerHTML = "";
-    const skills = DR_Skills.list();
-    const rows = [
-      {
-        id: "__invent",
-        label: DR_I18N.t("inventSkill"),
-        sub: DR_I18N.t("atoms"),
-        action: () => DR_Skills.invent(),
-      },
-    ].concat(
-      skills.map((sk) => ({
-        id: sk.id,
-        label: sk.name,
-        sub: (sk.chain || []).map((c) => c.atom).join(" → "),
-        action: () => DR_Skills.run(sk.id),
-      }))
-    );
-
-    rows.forEach((r, idx) => {
-      const div = document.createElement("div");
-      div.className = "row" + (idx === skillsCursor ? " selected" : "");
-      div.innerHTML = `<div class="label"><b>${escapeHtml(r.label)}</b><span>${escapeHtml(
-        r.sub || ""
-      )}</span></div><div class="val">${DR_I18N.t("runSkill")}</div>`;
-      div.addEventListener("click", () => {
-        skillsCursor = idx;
-        r.action();
-        renderSkills();
-      });
-      list.appendChild(div);
-    });
-    window.__DR_skillRows = rows;
-    const sel = list.querySelector(".selected");
-    if (sel) sel.scrollIntoView({ block: "nearest" });
-  }
-
   function escapeHtml(s) {
     return String(s)
       .replace(/&/g, "&amp;")
@@ -131,11 +89,6 @@ const DeskRabbit = (() => {
       renderFaces();
       return;
     }
-    if (screen === "skills") {
-      const n = (window.__DR_skillRows || []).length || 1;
-      skillsCursor = (skillsCursor + dir + n) % n;
-      renderSkills();
-    }
   }
 
   function onSideClick() {
@@ -151,11 +104,6 @@ const DeskRabbit = (() => {
     }
     if (screen === "faces") {
       selectFace(DR_PRESETS[facesCursor].id);
-      return;
-    }
-    if (screen === "skills") {
-      const rows = window.__DR_skillRows || [];
-      if (rows[skillsCursor]) rows[skillsCursor].action();
       return;
     }
 
@@ -194,7 +142,6 @@ const DeskRabbit = (() => {
     });
 
     DR_SDK.on("pluginMessage", (data) => {
-      if (DR_Skills.tryAbsorbInvention(data)) return;
       DR_Chat.handlePluginMessage(data);
     });
 
@@ -207,7 +154,6 @@ const DeskRabbit = (() => {
 
     document.getElementById("btn-back").addEventListener("click", () => show("face"));
     document.getElementById("btn-faces-back").addEventListener("click", () => show("settings"));
-    document.getElementById("btn-skills-back").addEventListener("click", () => show("settings"));
 
     document.getElementById("stage").addEventListener("click", () => {
       if (screen === "face") onSideClick();

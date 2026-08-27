@@ -24,12 +24,17 @@ const DR_Presence = (() => {
       setDot("away");
       return false;
     }
-    if (stream) return true;
+    if (stream) {
+      const live = stream.getTracks().some((t) => t.readyState === "live");
+      if (live) return true;
+      stop();
+    }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       console.warn("presence cam: no mediaDevices (needs secure context / HTTPS)");
       setDot("away");
       return false;
     }
+    await new Promise((r) => setTimeout(r, 280));
     const tries = [
       { video: { facingMode: "user", width: { ideal: 480 }, height: { ideal: 640 } }, audio: false },
       { video: { facingMode: { ideal: "user" }, width: { ideal: 480 }, height: { ideal: 640 } }, audio: false },
