@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DeskRabbit — Preview + QR</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #0e0f12;
+      color: #eee;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid #2a2d36;
+      background: #181a20;
+    }
+    header h1 { font-size: 16px; margin: 0; }
+    header .meta { color: #8b8a86; font-size: 12px; }
+    header button, header a.btn {
+      border: 0;
+      background: #fe5000;
+      color: #111;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 6px;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    header button.secondary { background: #3a3a3e; color: #eee; }
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 16px;
+      padding: 16px;
+      min-height: calc(100vh - 52px);
+    }
+    @media (max-width: 800px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: #12141a;
+      border: 1px solid #2a2d36;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    #qr {
+      background: #fff;
+      padding: 12px;
+      display: inline-block;
+      line-height: 0;
+      border-radius: 8px;
+    }
+    #qr canvas, #qr img { display: block; width: 280px; height: 280px; }
+    pre {
+      color: #fe5000;
+      font-size: 11px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 10px 0 0;
+    }
+    .preview-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .frame {
+      width: 240px;
+      height: 282px;
+      border: 2px solid #fe5000;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #000;
+    }
+    .frame iframe {
+      width: 240px;
+      height: 282px;
+      border: 0;
+      background: #000;
+    }
+    .err { color: #ff6b6b; font-size: 12px; margin-top: 8px; }
+  </style>
+  <script src="vendor/qrcode.min.js"></script>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>DeskRabbit — Preview + QR</h1>
+      <div class="meta" id="status">Lade creation.json…</div>
+    </div>
+    <div>
+      <button type="button" id="btn-refresh" class="secondary">Sync jetzt</button>
+      <a class="btn" href="./" target="_blank" rel="noopener">Creation</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="panel">
+      <h2 style="margin:0 0 10px;font-size:14px">Install-QR (live)</h2>
+      <div id="qr"></div>
+      <p class="err" id="err"></p>
+      <details open>
+        <summary>creation.json</summary>
+        <pre id="payload"></pre>
+      </details>
+    </section>
+    <section class="panel preview-wrap">
+      <h2 style="margin:0;font-size:14px">HTML-Vorschau (240×282)</h2>
+      <div class="frame">
+        <iframe id="preview" title="DeskRabbit preview" src="./index.html"></iframe>
+      </div>
+      <p class="meta">Pfeiltasten / Enter / Space / S in der Vorschau (Fokus ins Frame klicken).</p>
+    </section>
+  </div>
+
+  <script>
+    const QR_BOX = document.getElementById("qr");
+    const PAYLOAD = document.getElementById("payload");
+    const STATUS = document.getElementById("status");
+    const ERR = document.getElementById("err");
+    const PREVIEW = document.getElementById("preview");
+    let lastJson = "";
+
+    function withBust(url) {
+      try {
+        const u = new URL(url, location.href);
+        u.searchParams.set("v", Date.now().toString(36));
+        return u.toString();
+      } catch (_) {
+        return url + (url.includes("?") ? "&" : "?") + "v=" + Date.now().toString(36);
+      }
+    }
+
+    async function loadCreation() {
+      ERR.textContent = "";
+      const res = await fetch("./creation.json?ts=" + Date.now(), { cache: "no-store" });
+      if (!res.ok) throw new Error("creation.json " + res.status);
+      const meta = await res.json();
+
+      // Keep QR pointing at this server’s LAN-facing URL from file,
+      // but ensure preview iframe always reloads current code.
+      const json = JSON.stringify(meta);
+      PAYLOAD.textContent = JSON.stringify(meta, null, 2);
+
+      if (json !== lastJson) {
+        lastJson = json;
+        await renderQr(json);
+        STATUS.textContent =
+          "QR sync · " + meta.url + " · " + new Date().toLocaleTimeString();
+      } else {
+        STATUS.textContent =
+          "aktuell · " + meta.url + " · " + new Date().toLocaleTimeString();
+      }
+
+      // Always refresh preview when user hits Sync; light reload on interval only if focused
+      return meta;
+    }
+
+    function renderQr(text) {
+      return new Promise((resolve, reject) => {
+        if (typeof QRCode === "undefined") {
+          // fallback: static png
+          QR_BOX.innerHTML = '<img src="qr.png?ts=' + Date.now() + '" width="280" height="280" alt="QR" />';
+          reject(new Error("vendor/qrcode.min.js fehlt — zeige qr.png"));
+          return;
+        }
+        QRCode.toCanvas(text, { width: 280, margin: 2, errorCorrectionLevel: "M" }, (err, canvas) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          QR_BOX.innerHTML = "";
+          QR_BOX.appendChild(canvas);
+          resolve();
+        });
+      });
+    }
+
+    async function syncAll(reloadPreview) {
+      try {
+        await loadCreation();
+        if (reloadPreview) {
+          PREVIEW.src = "./index.html?v=" + Date.now().toString(36);
+        }
+      } catch (e) {
+        ERR.textContent = String(e.message || e);
+        // still try static png
+        QR_BOX.innerHTML = '<img src="qr.png?ts=' + Date.now() + '" width="280" height="280" alt="QR" />';
+      }
+    }
+
+    document.getElementById("btn-refresh").addEventListener("click", () => syncAll(true));
+    window.addEventListener("focus", () => syncAll(false));
+    syncAll(true);
+    setInterval(() => syncAll(false), 5000);
+  </script>
+</body>
+</html>

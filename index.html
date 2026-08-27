@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=240, height=282, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>DeskRabbit</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/faces.css" />
+</head>
+<body>
+  <div id="app" data-screen="face">
+    <!-- Face always mounted so preset/custom changes are visible -->
+    <div id="stage">
+      <div id="face" class="face preset-classic expr-idle" data-talking="false">
+        <div class="face-glow"></div>
+        <div class="eyes">
+          <div class="eye left"><div class="pupil"></div><div class="lid"></div></div>
+          <div class="eye right"><div class="pupil"></div><div class="lid"></div></div>
+        </div>
+        <div class="mouth"></div>
+        <div class="cheeks"><span></span><span></span></div>
+      </div>
+      <div id="presence-dot" class="presence away" title="presence"></div>
+      <div id="listen-dot" class="listen hidden" title="listening"></div>
+    </div>
+
+    <!-- Settings overlay: text → bars → rows -->
+    <section id="screen-settings" class="sheet" aria-label="settings" hidden>
+      <header class="sheet-head">
+        <h1 id="settings-title">Settings</h1>
+        <button type="button" id="btn-back" class="icon-btn">←</button>
+      </header>
+      <div id="settings-log" class="settings-log"></div>
+      <div id="hud" class="settings-hud">
+        <div class="bars">
+          <div class="bar" data-stat="affection"><i></i></div>
+          <div class="bar" data-stat="energy"><i></i></div>
+          <div class="bar" data-stat="curiosity"><i></i></div>
+          <div class="bar" data-stat="hunger"><i></i></div>
+        </div>
+        <div id="bond" class="bond">Lv.1</div>
+      </div>
+      <div id="settings-list" class="sheet-body"></div>
+    </section>
+
+    <section id="screen-faces" class="sheet" aria-label="faces" hidden>
+      <header class="sheet-head">
+        <h1 id="faces-title">Faces</h1>
+        <button type="button" id="btn-faces-back" class="icon-btn">←</button>
+      </header>
+      <div id="faces-list" class="sheet-body"></div>
+    </section>
+
+    <section id="screen-skills" class="sheet" aria-label="skills" hidden>
+      <header class="sheet-head">
+        <h1 id="skills-title">Skills</h1>
+        <button type="button" id="btn-skills-back" class="icon-btn">←</button>
+      </header>
+      <div id="skills-list" class="sheet-body"></div>
+    </section>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <video id="cam" playsinline muted autoplay></video>
+  <canvas id="cam-canvas" width="80" height="60"></canvas>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/sdk.js"></script>
+  <script src="js/faces/presets.js"></script>
+  <script src="js/face.js"></script>
+  <script src="js/companion.js"></script>
+  <script src="js/presence.js"></script>
+  <script src="js/motion.js"></script>
+  <script src="js/tools.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/skills.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
